@@ -7,7 +7,7 @@ from random import Random
 import sys
 from urllib.parse import urlparse
 
-from .deck import expand_deck, parse_deck_text
+from .deck import expand_deck, parse_deck_text, unknown_deck_entries
 from .greedy import GreedyOptions, greedy_reaches_target_by_second_turn
 from .state import setup_game, setup_opening_hand
 from .strategy import load_strategy
@@ -66,6 +66,13 @@ class AppHandler(BaseHTTPRequestHandler):
 
 def run_web_simulation(payload: dict) -> dict:
     deck = parse_deck_text(str(payload["deck"]))
+    warnings = [
+        (
+            "Unknown card treated as no-effect placeholder: "
+            f"{entry.name} {entry.set_code} {entry.number} ({entry.section or 'unknown section'})"
+        )
+        for entry in unknown_deck_entries(deck)
+    ]
     target = parse_target(json.loads(str(payload["target"])))
     strategy = load_strategy(payload.get("strategy_path") or ROOT / "examples" / "strategies" / "lugia_greedy.json")
     deck_cards = expand_deck(deck)
@@ -80,9 +87,13 @@ def run_web_simulation(payload: dict) -> dict:
 
     results = []
     if mode == "opening-hand":
-        return run_opening_hand_web(deck_cards, target, trials, rng)
+        result = run_opening_hand_web(deck_cards, target, trials, rng)
+        result["warnings"] = warnings
+        return result
     if mode == "setup":
-        return run_setup_web(deck_cards, target, trials, rng)
+        result = run_setup_web(deck_cards, target, trials, rng)
+        result["warnings"] = warnings
+        return result
 
     for index, going_first in enumerate(goings):
         local_seed = None if seed in {None, ""} else int(seed) + index
@@ -119,7 +130,7 @@ def run_web_simulation(payload: dict) -> dict:
             }
         )
 
-    return {"target": target.name, "results": results}
+    return {"target": target.name, "warnings": warnings, "results": results}
 
 
 def run_opening_hand_web(deck_cards: list[str], target, trials: int, rng: Random) -> dict:
