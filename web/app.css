@@ -1,0 +1,301 @@
+:root {
+  color-scheme: light;
+  --ink: #18221f;
+  --muted: #61706b;
+  --line: #d9e1de;
+  --panel: #ffffff;
+  --bg: #f5f7f6;
+  --accent: #0f7b65;
+  --accent-dark: #0a5e4d;
+  --warn: #9a3412;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 28px;
+}
+
+h2 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.primary {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  min-width: 96px;
+}
+
+.primary:hover {
+  background: var(--accent-dark);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+}
+
+input,
+select {
+  min-height: 38px;
+  padding: 6px 8px;
+}
+
+.check-label {
+  align-content: end;
+}
+
+.check-label input {
+  width: 22px;
+  min-height: 22px;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+  gap: 12px;
+}
+
+.editor textarea {
+  width: 100%;
+  min-height: 640px;
+  resize: vertical;
+  padding: 12px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.target-builder {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.section-head h2,
+.section-head h3 {
+  margin: 0;
+}
+
+.section-head.small h3 {
+  font-size: 16px;
+}
+
+.secondary {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--accent-dark);
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.secondary:hover {
+  border-color: var(--accent);
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  text-decoration: none;
+}
+
+.builder-block {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.condition-list {
+  display: grid;
+  gap: 8px;
+}
+
+.condition-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 74px 36px;
+  gap: 8px;
+  align-items: end;
+}
+
+.icon-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--warn);
+}
+
+.json-editor textarea {
+  min-height: 240px;
+}
+
+.status {
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.status.error {
+  color: var(--warn);
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.result-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.metric div {
+  background: #f5f7f6;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.metric strong {
+  display: block;
+  font-size: 22px;
+  color: var(--accent-dark);
+}
+
+details {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+ol {
+  padding-left: 22px;
+}
+
+li {
+  margin: 4px 0;
+}
+
+@media (max-width: 1100px) {
+  .app,
+  .workspace-grid,
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .editor textarea {
+    min-height: 360px;
+  }
+
+  .condition-row {
+    grid-template-columns: 1fr;
+  }
+}
