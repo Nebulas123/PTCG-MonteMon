@@ -124,6 +124,17 @@ Supported zones:
 - `stadium`
 - `deck`
 
+## Unknown Cards
+
+Deck import accepts card names that are not yet in the built-in card database.
+
+- Unknown cards in the `Pokemon` / `Pokémon` section are treated as no-effect Basic Pokemon.
+- Unknown cards in the `Trainer` section are treated as no-effect Item cards.
+- Unknown cards in the `Energy` section are treated as no-effect Energy cards.
+- CLI and Web UI results show warnings for every unknown card.
+
+This lets you test deck lists before every card effect is implemented. Add a real card definition later when that card's type, stage, searchability, or effect matters for the target route.
+
 ## Modes
 
 - `opening-hand`: checks the mulligan-valid opening hand before choosing an Active Pokemon.
