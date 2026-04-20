@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-from .cards import get_card_def
+from .cards import get_card_def, register_unknown_card
 
 
 DECK_LINE_RE = re.compile(r"^(?P<count>\d+)\s+(?P<name>.+?)\s+(?P<set>[A-Z0-9]+)\s+(?P<number>[A-Z0-9]+)$")
@@ -16,25 +16,35 @@ class DeckEntry:
     name: str
     set_code: str
     number: str
+    section: str | None = None
 
 
 def parse_deck_text(text: str) -> list[DeckEntry]:
     entries: list[DeckEntry] = []
+    current_section: str | None = None
     for raw_line in text.splitlines():
         line = raw_line.strip()
-        if not line or line.endswith(":") or ":" in line and not line[0].isdigit():
+        if not line:
+            continue
+        if line.endswith(":") or ":" in line and not line[0].isdigit():
+            current_section = line.rstrip(":").strip()
             continue
 
         match = DECK_LINE_RE.match(line)
         if not match:
             raise ValueError(f"Cannot parse deck line: {raw_line!r}")
 
+        name = match.group("name")
+        set_code = match.group("set")
+        number = match.group("number")
+        register_unknown_card(name, set_code, number, current_section)
         entries.append(
             DeckEntry(
                 count=int(match.group("count")),
-                name=match.group("name"),
-                set_code=match.group("set"),
-                number=match.group("number"),
+                name=name,
+                set_code=set_code,
+                number=number,
+                section=current_section,
             )
         )
 
@@ -44,6 +54,8 @@ def parse_deck_text(text: str) -> list[DeckEntry]:
 
     for entry in entries:
         card_def = get_card_def(entry.name)
+        if card_def.inferred:
+            continue
         if card_def.set_code != entry.set_code or card_def.number != entry.number:
             raise ValueError(
                 f"Deck line {entry.name} {entry.set_code} {entry.number} does not match card database."
@@ -61,3 +73,7 @@ def expand_deck(entries: list[DeckEntry]) -> list[str]:
     for entry in entries:
         cards.extend([entry.name] * entry.count)
     return cards
+
+
+def unknown_deck_entries(entries: list[DeckEntry]) -> list[DeckEntry]:
+    return [entry for entry in entries if get_card_def(entry.name).inferred]
