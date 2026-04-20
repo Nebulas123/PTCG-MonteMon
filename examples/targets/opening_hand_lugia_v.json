@@ -1,0 +1,8 @@
+{
+  "name": "Opening hand contains Lugia V",
+  "zones": {
+    "hand": {
+      "Lugia V": 1
+    }
+  }
+}
