@@ -245,6 +245,11 @@ select {
   margin-bottom: 12px;
 }
 
+.warning-card {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
 .metric {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
