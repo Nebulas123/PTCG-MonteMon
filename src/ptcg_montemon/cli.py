@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from .deck import load_deck
+from .deck import load_deck, unknown_deck_entries
 from .sim import run_opening_hand_trials, run_setup_trials, run_two_turn_trials
 from .strategy import load_strategy
 from .target import load_target
@@ -72,21 +72,24 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     deck = load_deck(args.deck)
+    warnings = format_unknown_warnings(deck)
     target = load_target(args.target)
     strategy = load_strategy(args.strategy)
     if args.mode == "opening-hand":
         result = run_opening_hand_trials(deck, target, trials=args.trials, seed=args.seed)
         if args.json_output:
-            print_json_results(target.name, [result], explain=args.explain)
+            print_json_results(target.name, [result], explain=args.explain, warnings=warnings)
             return
+        print_warnings(warnings)
         print_result(target.name, result, explain=args.explain)
         return
 
     if args.mode == "setup":
         result = run_setup_trials(deck, target, trials=args.trials, seed=args.seed)
         if args.json_output:
-            print_json_results(target.name, [result], explain=args.explain)
+            print_json_results(target.name, [result], explain=args.explain, warnings=warnings)
             return
+        print_warnings(warnings)
         print_result(target.name, result, explain=args.explain)
         return
 
@@ -107,8 +110,9 @@ def main() -> None:
         )
         results.append(result)
     if args.json_output:
-        print_json_results(target.name, results, explain=args.explain)
+        print_json_results(target.name, results, explain=args.explain, warnings=warnings)
         return
+    print_warnings(warnings)
     for result in results:
         print_result(target.name, result, explain=args.explain)
 
@@ -134,9 +138,25 @@ def print_result(target_name: str, result, explain: bool = False) -> None:
             print(f"- {step}")
 
 
-def print_json_results(target_name: str, results, explain: bool = False) -> None:
+def format_unknown_warnings(deck) -> list[str]:
+    return [
+        (
+            f"Unknown card treated as no-effect placeholder: "
+            f"{entry.name} {entry.set_code} {entry.number} ({entry.section or 'unknown section'})"
+        )
+        for entry in unknown_deck_entries(deck)
+    ]
+
+
+def print_warnings(warnings: list[str]) -> None:
+    for warning in warnings:
+        print(f"warning: {warning}")
+
+
+def print_json_results(target_name: str, results, explain: bool = False, warnings: list[str] | None = None) -> None:
     payload = {
         "target": target_name,
+        "warnings": warnings or [],
         "results": [
             {
                 "mode": result.mode,
