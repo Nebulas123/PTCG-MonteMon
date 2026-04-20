@@ -282,6 +282,8 @@ def use_supporter(state: GameState, options: GreedyOptions) -> bool:
     for supporter in supporter_priority(state, options.strategy):
         if supporter not in state.hand:
             continue
+        if state.turn == 1 and options.going_first and supporter != "Carmine":
+            continue
         if supporter == "Professor's Research":
             discard_hand_and_draw(state, supporter, 7)
             return True
