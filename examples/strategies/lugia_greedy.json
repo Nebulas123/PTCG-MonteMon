@@ -1,0 +1,63 @@
+{
+  "action_priority": [
+    "evolve_lugia",
+    "bench_basic",
+    "play_mesagoza",
+    "use_mesagoza",
+    "ultra_ball",
+    "great_ball",
+    "capturing_aroma",
+    "supporter",
+    "squawkabilly"
+  ],
+  "active_priority": [
+    "Lugia V",
+    "Squawkabilly ex",
+    "Lumineon V",
+    "Minccino",
+    "Iron Bundle",
+    "Iron Hands ex",
+    "Bloodmoon Ursaluna ex",
+    "Fezandipiti ex"
+  ],
+  "bench_priority": [
+    "Lugia V",
+    "Squawkabilly ex",
+    "Lumineon V",
+    "Minccino",
+    "Iron Bundle",
+    "Iron Hands ex",
+    "Bloodmoon Ursaluna ex",
+    "Fezandipiti ex"
+  ],
+  "pokemon_search_priority": [
+    "Lugia V",
+    "Lugia VSTAR",
+    "Archeops",
+    "Lumineon V",
+    "Squawkabilly ex"
+  ],
+  "supporter_priority": [
+    "Professor's Research",
+    "Carmine",
+    "Jacq",
+    "Iono"
+  ],
+  "discard_priority": [
+    "Archeops",
+    "duplicate Lugia VSTAR",
+    "Energy",
+    "Boss's Orders",
+    "Roseanne's Backup",
+    "Thorton",
+    "Trainer",
+    "Pokemon",
+    "Lugia VSTAR",
+    "Lugia V"
+  ],
+  "max_actions_per_turn": 80,
+  "prefer_research_when_holding_archeops": true,
+  "prefer_jacq_when_missing_lugia_vstar": true,
+  "use_mesagoza": true,
+  "use_squawkabilly": true
+}
