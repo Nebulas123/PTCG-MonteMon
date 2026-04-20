@@ -246,7 +246,8 @@ async function runSimulation() {
       throw new Error(payload.error || "运行失败");
     }
     renderResults(payload);
-    statusEl.textContent = `完成：${payload.target}`;
+    const warningCount = payload.warnings?.length || 0;
+    statusEl.textContent = warningCount ? `完成：${payload.target}，${warningCount} 张未知卡按无效果处理` : `完成：${payload.target}`;
   } catch (error) {
     statusEl.className = "status error";
     statusEl.textContent = error.message;
@@ -257,6 +258,19 @@ async function runSimulation() {
 
 function renderResults(payload) {
   resultsEl.innerHTML = "";
+  if (payload.warnings?.length) {
+    const warningBox = document.createElement("article");
+    warningBox.className = "result-card warning-card";
+    warningBox.innerHTML = "<h3>未知卡处理</h3>";
+    const list = document.createElement("ol");
+    payload.warnings.forEach((warning) => {
+      const item = document.createElement("li");
+      item.textContent = warning;
+      list.appendChild(item);
+    });
+    warningBox.appendChild(list);
+    resultsEl.appendChild(warningBox);
+  }
   for (const result of payload.results) {
     const card = document.createElement("article");
     card.className = "result-card";
