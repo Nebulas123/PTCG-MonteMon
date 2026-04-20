@@ -1,0 +1,12 @@
+[project]
+name = "ptcg-montemon"
+version = "0.1.0"
+description = "Monte Carlo simulator for Pokemon TCG opening board-state odds."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+ptcg-montemon = "ptcg_montemon.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
