@@ -35,6 +35,7 @@ class CardDef:
     notes: tuple[str, ...] = ()
     implemented_effects: tuple[str, ...] = ()
     missing_effects: tuple[str, ...] = field(default_factory=tuple)
+    inferred: bool = False
 
     @property
     def is_basic_pokemon(self) -> bool:
@@ -243,3 +244,45 @@ def get_card_def(name: str) -> CardDef:
         return CARD_DEFS[name]
     except KeyError as exc:
         raise KeyError(f"Unknown card definition: {name}") from exc
+
+
+def register_unknown_card(name: str, set_code: str, number: str, section: str | None = None) -> CardDef:
+    if name in CARD_DEFS:
+        return CARD_DEFS[name]
+
+    normalized_section = (section or "").lower().replace("é", "e")
+    if normalized_section.startswith(("pokemon", "pok")):
+        card_def = CardDef(
+            name=name,
+            kind=CardKind.POKEMON,
+            set_code=set_code,
+            number=number,
+            pokemon_stage=PokemonStage.BASIC,
+            notes=("Imported from deck list as an unknown Basic Pokemon.",),
+            missing_effects=("Card effect is not implemented; treated as a no-effect Basic Pokemon.",),
+            inferred=True,
+        )
+    elif normalized_section.startswith("energy"):
+        card_def = CardDef(
+            name=name,
+            kind=CardKind.ENERGY,
+            set_code=set_code,
+            number=number,
+            notes=("Imported from deck list as an unknown Energy card.",),
+            missing_effects=("Energy effect is not implemented; treated as a no-effect Energy.",),
+            inferred=True,
+        )
+    else:
+        card_def = CardDef(
+            name=name,
+            kind=CardKind.TRAINER,
+            set_code=set_code,
+            number=number,
+            trainer_kind=TrainerKind.ITEM,
+            notes=("Imported from deck list as an unknown Trainer card."),
+            missing_effects=("Card effect is not implemented; treated as a no-effect Item.",),
+            inferred=True,
+        )
+
+    CARD_DEFS[name] = card_def
+    return card_def
