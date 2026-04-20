@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PTCG-MonteMon</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel deck-panel">
+        <div class="topbar">
+          <h1>PTCG-MonteMon</h1>
+          <div class="actions">
+            <a class="secondary link-button" href="https://limitlesstcg.com/tools/imggen" target="_blank" rel="noreferrer">绘制卡组</a>
+            <button id="runBtn" class="primary">运行模拟</button>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label>
+            样本数
+            <input id="trials" type="number" min="1" step="100" value="1000" />
+          </label>
+          <label>
+            随机种子
+            <input id="seed" type="number" placeholder="留空随机" disabled />
+          </label>
+          <label class="check-label">
+            固定种子
+            <input id="fixedSeed" type="checkbox" />
+          </label>
+          <label>
+            先后手
+            <select id="going">
+              <option value="first">先手</option>
+              <option value="second">后手</option>
+              <option value="both">都算</option>
+            </select>
+          </label>
+          <label>
+            检查时点
+            <select id="mode">
+              <option value="two-turn">第二回合后</option>
+              <option value="opening-hand">起手手牌</option>
+              <option value="setup">开局摆场后</option>
+            </select>
+          </label>
+          <label>
+            后一干扰
+            <select id="opp1">
+              <option value="none">无</option>
+              <option value="iono">Iono</option>
+              <option value="judge">Judge</option>
+            </select>
+          </label>
+          <label>
+            后二干扰
+            <select id="opp2">
+              <option value="none">无</option>
+              <option value="iono">Iono</option>
+              <option value="judge">Judge</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="presets">
+          <button id="loadDeckBtn" type="button" class="secondary">恢复 Lugia 卡组</button>
+          <button id="loadT2TargetBtn" type="button" class="secondary">默认 T2 目标</button>
+          <button id="loadOpeningTargetBtn" type="button" class="secondary">起手 Lugia V 目标</button>
+        </div>
+
+        <div class="workspace-grid">
+          <label class="editor">
+            卡组导入
+            <textarea id="deckText" spellcheck="false"></textarea>
+          </label>
+          <section class="target-builder">
+            <div class="section-head">
+              <h2>目标场面</h2>
+              <button id="syncJsonBtn" type="button" class="secondary">同步 JSON</button>
+            </div>
+            <label>
+              目标名称
+              <input id="targetName" value="T2 Lugia VSTAR in play, 2 Archeops discarded" />
+            </label>
+            <div class="builder-block">
+              <div class="section-head small">
+                <h3>必须满足</h3>
+                <button id="addRequiredBtn" type="button" class="secondary">添加</button>
+              </div>
+              <div id="requiredRows" class="condition-list"></div>
+            </div>
+            <div class="builder-block">
+              <div class="section-head small">
+                <h3>任一满足</h3>
+                <button id="addAnyBtn" type="button" class="secondary">添加</button>
+              </div>
+              <div id="anyRows" class="condition-list"></div>
+            </div>
+            <label class="editor json-editor">
+              JSON 预览
+              <textarea id="targetText" spellcheck="false"></textarea>
+            </label>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel result-panel">
+        <h2>结果</h2>
+        <div id="status" class="status">等待运行</div>
+        <div id="results" class="results"></div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
