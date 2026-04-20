@@ -1,0 +1,20 @@
+{
+  "name": "T2 Lugia VSTAR in play, 2 Archeops discarded",
+  "zones": {
+    "discard": {
+      "Archeops": 2
+    }
+  },
+  "any_of": [
+    {
+      "active": {
+        "Lugia VSTAR": 1
+      }
+    },
+    {
+      "bench": {
+        "Lugia VSTAR": 1
+      }
+    }
+  ]
+}
