@@ -74,7 +74,7 @@ def run_web_simulation(payload: dict) -> dict:
         for entry in unknown_deck_entries(deck)
     ]
     target = parse_target(json.loads(str(payload["target"])))
-    strategy = load_strategy(payload.get("strategy_path") or ROOT / "examples" / "strategies" / "lugia_greedy.json")
+    strategy = load_strategy(payload.get("strategy_path") or default_strategy_path(deck))
     deck_cards = expand_deck(deck)
     trials = int(payload.get("trials", 1000))
     seed = payload.get("seed")
@@ -157,6 +157,14 @@ def run_opening_hand_web(deck_cards: list[str], target, trials: int, rng: Random
             }
         ],
     }
+
+
+def default_strategy_path(deck) -> Path:
+    names = {entry.name for entry in deck}
+    rainbow_markers = {"Quick Ball", "Evolution Incense", "Crobat V", "Serena", "Marnie"}
+    if names & rainbow_markers:
+        return ROOT / "examples" / "strategies" / "lugia_rainbow_greedy.json"
+    return ROOT / "examples" / "strategies" / "lugia_greedy.json"
 
 
 def run_setup_web(deck_cards: list[str], target, trials: int, rng: Random) -> dict:
