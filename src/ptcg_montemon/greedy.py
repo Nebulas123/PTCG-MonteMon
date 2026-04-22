@@ -38,17 +38,15 @@ def greedy_reaches_target_by_second_turn(
 ) -> tuple[bool, list[str]]:
     state = greedy_setup(opening, options.strategy)
     for own_turn in (1, 2):
-        if own_turn == 1 and not options.going_first:
-            apply_opponent_disruption(state, normalize_disruption(options.opponent_turn1_disruption), rng, "opponent turn 1")
         start_turn(state, own_turn, options)
         run_greedy_turn(state, options, rng)
         if own_turn == 1:
             if options.going_first:
                 disruption = normalize_disruption(options.opponent_turn1_disruption, options.opponent_disruption)
-                label = "opponent turn 1"
+                label = "opponent turn 1 (after our turn 1)"
             else:
                 disruption = normalize_disruption(options.opponent_turn2_disruption, options.opponent_disruption)
-                label = "opponent turn 2"
+                label = "opponent turn 2 (after our turn 1)"
             apply_opponent_disruption(state, disruption, rng, label)
     return target.matches(state), state.route
 
@@ -63,6 +61,7 @@ def greedy_setup(opening: GameState, strategy: GreedyStrategy) -> GameState:
     state.active_turns = [0]
     state.route.append(f"setup: choose {active} as Active")
     state.prizes = [state.deck.pop(0) for _ in range(6)]
+    state.route.append(f"setup: prize cards: {format_cards(state.prizes)}")
     return state
 
 
@@ -89,12 +88,16 @@ def start_turn(state: GameState, own_turn: int, options: GreedyOptions) -> None:
 def run_greedy_turn(state: GameState, options: GreedyOptions, rng: Random) -> None:
     action_map = {
         "evolve_lugia": lambda: evolve_lugia(state),
+        "summoning_star": lambda: use_summoning_star(state, options.strategy),
         "bench_basic": lambda: bench_basic(state, options.strategy, rng),
         "play_mesagoza": lambda: play_mesagoza(state, options.strategy),
         "use_mesagoza": lambda: use_mesagoza(state, options.strategy, rng),
         "ultra_ball": lambda: use_ultra_ball(state, options.strategy, rng),
-        "great_ball": lambda: use_great_ball(state, options.strategy),
+        "quick_ball": lambda: use_quick_ball(state, options.strategy, rng),
+        "evolution_incense": lambda: use_evolution_incense(state, options.strategy, rng),
+        "great_ball": lambda: use_great_ball(state, options.strategy, rng),
         "capturing_aroma": lambda: use_capturing_aroma(state, options.strategy, rng),
+        "attach_energy": lambda: attach_energy(state, options.strategy, rng),
         "supporter": lambda: use_supporter(state, options, rng),
         "squawkabilly": lambda: use_squawkabilly(state, options.strategy),
     }
@@ -167,6 +170,8 @@ def evolve_lugia(state: GameState) -> bool:
 def bench_basic(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
     if len(state.bench) >= 5:
         return False
+    if should_reserve_bench_for_summoning_star(state, strategy) and len(state.bench) >= 3:
+        return False
     for card_name in strategy.bench_priority:
         if card_name in state.hand and CARD_DEFS[card_name].is_basic_pokemon:
             move_one(state.hand, state.bench, card_name)
@@ -174,8 +179,39 @@ def bench_basic(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool
             state.route.append(f"turn {state.turn}: bench {card_name}")
             if card_name == "Lumineon V" and not state.luminous_sign_used:
                 use_lumineon(state, strategy, rng)
+            if card_name == "Crobat V" and not state.dark_asset_used:
+                use_crobat(state)
             return True
     return False
+
+
+def should_reserve_bench_for_summoning_star(state: GameState, strategy: GreedyStrategy) -> bool:
+    if not strategy.use_summoning_star or not strategy.reserve_bench_for_summoning_star:
+        return False
+    if state.summoning_star_used:
+        return False
+    if "Lugia VSTAR" in state.active or "Lugia VSTAR" in state.bench:
+        return count_in_zone(state.discard, "Archeops") > 0
+    return state.turn < 2
+
+
+def use_summoning_star(state: GameState, strategy: GreedyStrategy) -> bool:
+    if not strategy.use_summoning_star or state.summoning_star_used:
+        return False
+    if "Lugia VSTAR" not in state.active and "Lugia VSTAR" not in state.bench:
+        return False
+    if "Archeops" not in state.discard or len(state.bench) >= 5:
+        return False
+
+    moved: list[str] = []
+    while "Archeops" in state.discard and len(state.bench) < 5 and len(moved) < 2:
+        move_one(state.discard, state.bench, "Archeops")
+        state.bench_turns.append(state.turn)
+        moved.append("Archeops")
+
+    state.summoning_star_used = True
+    state.route.append(f"turn {state.turn}: Lugia VSTAR uses Summoning Star, benches {format_cards(moved)}")
+    return True
 
 
 def use_lumineon(state: GameState, strategy: GreedyStrategy, rng: Random) -> None:
@@ -211,11 +247,13 @@ def play_mesagoza(state: GameState, strategy: GreedyStrategy) -> bool:
 def use_mesagoza(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
     if not strategy.use_mesagoza or "Mesagoza" not in state.stadium or state.turn in state.mesagoza_used_turns:
         return False
+    if should_prioritize_burnet_with_deck_archeops(state, strategy):
+        return False
     state.mesagoza_used_turns.append(state.turn)
     if rng.random() >= 0.5:
         state.route.append(f"turn {state.turn}: Mesagoza flips tails")
         return True
-    pokemon = choose_pokemon_from_deck(state, strategy)
+    pokemon = choose_pokemon_from_deck(state, strategy, search_source="mesagoza")
     if pokemon is None:
         rng.shuffle(state.deck)
         state.route.append(f"turn {state.turn}: Mesagoza flips heads, finds no Pokemon, shuffles deck")
@@ -229,12 +267,16 @@ def use_mesagoza(state: GameState, strategy: GreedyStrategy, rng: Random) -> boo
 def use_ultra_ball(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
     if "Ultra Ball" not in state.hand:
         return False
+    if should_prioritize_burnet_with_deck_archeops(state, strategy):
+        return False
+    if should_prioritize_jacq_with_ultra_ball(state, strategy):
+        return False
     remaining = list(state.hand)
     remaining.remove("Ultra Ball")
     if len(remaining) < 2:
         return False
     costs = choose_discard_costs(state, strategy, remaining)
-    pokemon = choose_pokemon_from_deck(state, strategy)
+    pokemon = choose_pokemon_from_deck(state, strategy, search_source="ultra_ball")
     if pokemon is None:
         return False
     move_one(state.hand, state.discard, "Ultra Ball")
@@ -248,24 +290,64 @@ def use_ultra_ball(state: GameState, strategy: GreedyStrategy, rng: Random) -> b
     return True
 
 
-def use_great_ball(state: GameState, strategy: GreedyStrategy) -> bool:
+def use_quick_ball(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
+    if "Quick Ball" not in state.hand:
+        return False
+    remaining = list(state.hand)
+    remaining.remove("Quick Ball")
+    if not remaining:
+        return False
+    choices = [card_name for card_name in state.deck if CARD_DEFS[card_name].is_basic_pokemon]
+    if not choices:
+        return False
+    cost = choose_discard_costs(state, strategy, remaining)[0]
+    pokemon = choose_best_pokemon(state, strategy, choices, search_source="quick_ball")
+    move_one(state.hand, state.discard, "Quick Ball")
+    move_one(state.hand, state.discard, cost)
+    move_one(state.deck, state.hand, pokemon)
+    rng.shuffle(state.deck)
+    state.route.append(f"turn {state.turn}: Quick Ball discards {cost}, searches {pokemon}, shuffles deck")
+    return True
+
+
+def use_evolution_incense(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
+    if "Evolution Incense" not in state.hand:
+        return False
+    choices = [card_name for card_name in state.deck if is_evolution_pokemon(card_name)]
+    if not choices:
+        return False
+    pokemon = choose_best_pokemon(state, strategy, choices, search_source="evolution_incense")
+    move_one(state.hand, state.discard, "Evolution Incense")
+    move_one(state.deck, state.hand, pokemon)
+    rng.shuffle(state.deck)
+    state.route.append(f"turn {state.turn}: Evolution Incense searches {pokemon}, shuffles deck")
+    return True
+
+
+def use_great_ball(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
     if "Great Ball" not in state.hand:
+        return False
+    if should_prioritize_burnet_with_deck_archeops(state, strategy):
         return False
     top_cards = state.deck[:7]
     choices = [card_name for card_name in top_cards if CARD_DEFS[card_name].kind == CardKind.POKEMON]
     move_one(state.hand, state.discard, "Great Ball")
     if not choices:
-        state.route.append(f"turn {state.turn}: Great Ball whiffs")
+        rng.shuffle(state.deck)
+        state.route.append(f"turn {state.turn}: Great Ball whiffs, shuffles deck")
         return True
-    pokemon = choose_best_pokemon(state, strategy, choices)
+    pokemon = choose_best_pokemon(state, strategy, choices, search_source="great_ball")
     state.deck.remove(pokemon)
     state.hand.append(pokemon)
-    state.route.append(f"turn {state.turn}: Great Ball takes {pokemon} from top 7")
+    rng.shuffle(state.deck)
+    state.route.append(f"turn {state.turn}: Great Ball takes {pokemon} from top 7, shuffles deck")
     return True
 
 
 def use_capturing_aroma(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
     if "Capturing Aroma" not in state.hand:
+        return False
+    if should_prioritize_burnet_with_deck_archeops(state, strategy):
         return False
     is_heads = rng.random() < 0.5
     result = "heads" if is_heads else "tails"
@@ -276,11 +358,69 @@ def use_capturing_aroma(state: GameState, strategy: GreedyStrategy, rng: Random)
         rng.shuffle(state.deck)
         state.route.append(f"turn {state.turn}: Capturing Aroma flips {result}, finds no matching Pokemon, shuffles deck")
         return True
-    pokemon = choose_best_pokemon(state, strategy, choices)
+    pokemon = choose_best_pokemon(state, strategy, choices, search_source="capturing_aroma")
     move_one(state.deck, state.hand, pokemon)
     rng.shuffle(state.deck)
     state.route.append(f"turn {state.turn}: Capturing Aroma flips {result}, searches {pokemon}, shuffles deck")
     return True
+
+
+def attach_energy(state: GameState, strategy: GreedyStrategy, rng: Random) -> bool:
+    if state.turn in state.energy_attached_turns:
+        return False
+    if not state.active and not state.bench:
+        return False
+    if "Aurora Energy" in state.hand and len(state.hand) > 1 and count_in_zone(state.discard, "Archeops") < 2:
+        remaining = list(state.hand)
+        remaining.remove("Aurora Energy")
+        cost = choose_discard_costs(state, strategy, remaining)[0]
+        move_one(state.hand, state.attached_energy, "Aurora Energy")
+        move_one(state.hand, state.discard, cost)
+        state.energy_attached_turns.append(state.turn)
+        state.route.append(f"turn {state.turn}: attach Aurora Energy, discards {cost}")
+        return True
+    if "Speed Lightning Energy" in state.hand and has_in_play(state, "Raikou"):
+        move_one(state.hand, state.attached_energy, "Speed Lightning Energy")
+        drawn = state.draw(2)
+        state.energy_attached_turns.append(state.turn)
+        state.route.append(f"turn {state.turn}: attach Speed Lightning Energy to Raikou, draws {format_cards(drawn)}")
+        return True
+    if "Capture Energy" in state.hand:
+        choices = [card_name for card_name in state.deck if CARD_DEFS[card_name].is_basic_pokemon]
+        if choices:
+            pokemon = choose_best_pokemon(state, strategy, choices, search_source="capture_energy")
+            move_one(state.hand, state.attached_energy, "Capture Energy")
+            move_one(state.deck, state.bench, pokemon)
+            state.bench_turns.append(state.turn)
+            rng.shuffle(state.deck)
+            state.energy_attached_turns.append(state.turn)
+            state.route.append(f"turn {state.turn}: attach Capture Energy, benches {pokemon}, shuffles deck")
+            return True
+    energy = choose_energy_to_attach(state)
+    if energy is not None:
+        move_one(state.hand, state.attached_energy, energy)
+        state.energy_attached_turns.append(state.turn)
+        state.route.append(f"turn {state.turn}: attach {energy}")
+        return True
+    return False
+
+
+def choose_energy_to_attach(state: GameState) -> str | None:
+    for energy in [
+        "Powerful Colorless Energy",
+        "Double Turbo Energy",
+        "V Guard Energy",
+        "Heat Fire Energy",
+        "Speed Lightning Energy",
+        "Capture Energy",
+        "Aurora Energy",
+    ]:
+        if energy in state.hand:
+            return energy
+    for card_name in state.hand:
+        if CARD_DEFS[card_name].kind == CardKind.ENERGY:
+            return card_name
+    return None
 
 
 def use_supporter(state: GameState, options: GreedyOptions, rng: Random) -> bool:
@@ -297,8 +437,19 @@ def use_supporter(state: GameState, options: GreedyOptions, rng: Random) -> bool
         if supporter == "Carmine":
             discard_hand_and_draw(state, supporter, 5)
             return True
+        if supporter == "Serena":
+            use_serena(state, options.strategy)
+            return True
         if supporter == "Iono":
             use_iono(state)
+            return True
+        if supporter == "Marnie":
+            use_marnie(state)
+            return True
+        if supporter == "Professor Burnet":
+            if "Archeops" not in state.deck:
+                continue
+            use_professor_burnet(state, rng)
             return True
         if supporter == "Jacq":
             use_jacq(state, rng)
@@ -315,6 +466,10 @@ def supporter_allowed(state: GameState, options: GreedyOptions) -> bool:
 
 
 def supporter_priority(state: GameState, strategy: GreedyStrategy) -> list[str]:
+    if count_in_zone(state.discard, "Archeops") < 2 and "Professor Burnet" in state.hand and "Archeops" in state.deck:
+        return ["Professor Burnet", "Carmine", "Professor's Research", "Iono", "Jacq"]
+    if should_prioritize_jacq_with_ultra_ball(state, strategy):
+        return ["Jacq", "Professor's Research", "Carmine", "Iono"]
     if (
         strategy.prefer_research_when_holding_archeops
         and count_in_zone(state.discard, "Archeops") < 2
@@ -328,6 +483,26 @@ def supporter_priority(state: GameState, strategy: GreedyStrategy) -> list[str]:
     ):
         return ["Jacq", "Professor's Research", "Carmine", "Iono"]
     return list(strategy.supporter_priority)
+
+
+def should_prioritize_jacq_with_ultra_ball(state: GameState, strategy: GreedyStrategy) -> bool:
+    if not strategy.prefer_jacq_with_ultra_ball:
+        return False
+    if state.turn != 2 or state.supporter_played:
+        return False
+    if "Jacq" not in state.hand or "Ultra Ball" not in state.hand:
+        return False
+    return "Lugia VSTAR" in state.deck or "Archeops" in state.deck
+
+
+def should_prioritize_burnet_with_deck_archeops(state: GameState, strategy: GreedyStrategy) -> bool:
+    if not strategy.prefer_burnet_with_deck_archeops:
+        return False
+    if state.turn != 2 or state.supporter_played:
+        return False
+    if count_in_zone(state.discard, "Archeops") >= 2:
+        return False
+    return "Professor Burnet" in state.hand and "Archeops" in state.deck
 
 
 def discard_hand_and_draw(state: GameState, supporter: str, draw_count: int) -> None:
@@ -354,6 +529,29 @@ def use_iono(state: GameState) -> None:
     state.route.append(f"turn {state.turn}: Iono draws {format_cards(drawn)}")
 
 
+def use_marnie(state: GameState) -> None:
+    state.hand.remove("Marnie")
+    state.discard.append("Marnie")
+    bottom = list(state.hand)
+    state.hand = []
+    state.deck.extend(bottom)
+    drawn = state.draw(5)
+    state.supporter_played = True
+    state.route.append(f"turn {state.turn}: Marnie puts {format_cards(bottom)} on bottom, draws {format_cards(drawn)}")
+
+
+def use_serena(state: GameState, strategy: GreedyStrategy) -> None:
+    state.hand.remove("Serena")
+    state.discard.append("Serena")
+    discard_count = min(3, len(state.hand))
+    discarded = choose_discard_costs(state, strategy, list(state.hand))[:discard_count]
+    for card_name in discarded:
+        move_one(state.hand, state.discard, card_name)
+    drawn = state.draw(max(0, 5 - len(state.hand)))
+    state.supporter_played = True
+    state.route.append(f"turn {state.turn}: Serena discards {format_cards(discarded)} and draws {format_cards(drawn)}")
+
+
 def use_jacq(state: GameState, rng: Random) -> None:
     move_one(state.hand, state.discard, "Jacq")
     choices = [card_name for card_name in state.deck if is_evolution_pokemon(card_name)]
@@ -365,6 +563,17 @@ def use_jacq(state: GameState, rng: Random) -> None:
     rng.shuffle(state.deck)
     state.supporter_played = True
     state.route.append(f"turn {state.turn}: Jacq searches {format_cards(searched)}, shuffles deck")
+
+
+def use_professor_burnet(state: GameState, rng: Random) -> None:
+    move_one(state.hand, state.discard, "Professor Burnet")
+    discarded: list[str] = []
+    while "Archeops" in state.deck and len(discarded) < 2:
+        move_one(state.deck, state.discard, "Archeops")
+        discarded.append("Archeops")
+    rng.shuffle(state.deck)
+    state.supporter_played = True
+    state.route.append(f"turn {state.turn}: Professor Burnet discards {format_cards(discarded)}, shuffles deck")
 
 
 def use_squawkabilly(state: GameState, strategy: GreedyStrategy) -> bool:
@@ -386,6 +595,12 @@ def use_squawkabilly(state: GameState, strategy: GreedyStrategy) -> bool:
         f"turn 1: use Squawkabilly ex, discard {format_cards(discarded)} and draw {format_cards(drawn)}"
     )
     return True
+
+
+def use_crobat(state: GameState) -> None:
+    drawn = state.draw(max(0, 6 - len(state.hand)))
+    state.dark_asset_used = True
+    state.route.append(f"turn {state.turn}: Crobat V uses Dark Asset, draws {format_cards(drawn)}")
 
 
 def choose_discard_costs(state: GameState, strategy: GreedyStrategy, cards: list[str]) -> list[str]:
@@ -416,35 +631,59 @@ def discard_labels(state: GameState, card_name: str) -> set[str]:
     return labels
 
 
-def choose_pokemon_from_deck(state: GameState, strategy: GreedyStrategy) -> str | None:
+def choose_pokemon_from_deck(
+    state: GameState, strategy: GreedyStrategy, search_source: str = "generic"
+) -> str | None:
     choices = [card_name for card_name in state.deck if CARD_DEFS[card_name].kind == CardKind.POKEMON]
     if not choices:
         return None
-    return choose_best_pokemon(state, strategy, choices)
+    return choose_best_pokemon(state, strategy, choices, search_source=search_source)
 
 
-def choose_best_pokemon(state: GameState, strategy: GreedyStrategy, choices: list[str]) -> str:
-    priorities = pokemon_priority(state, strategy)
+def choose_best_pokemon(
+    state: GameState, strategy: GreedyStrategy, choices: list[str], search_source: str = "generic"
+) -> str:
+    priorities = pokemon_priority(state, strategy, search_source=search_source)
     for pokemon in priorities:
         if pokemon in choices:
             return pokemon
     return choices[0]
 
 
-def pokemon_priority(state: GameState, strategy: GreedyStrategy) -> list[str]:
+def pokemon_priority(state: GameState, strategy: GreedyStrategy, search_source: str = "generic") -> list[str]:
     priorities: list[str] = []
     if not has_in_play(state, "Lugia V") and "Lugia VSTAR" not in state.active + state.bench:
         priorities.append("Lugia V")
+    if should_search_archeops_for_ultra_ball(state, strategy, search_source):
+        priorities.append("Archeops")
     if "Lugia VSTAR" not in state.hand and not has_in_play(state, "Lugia VSTAR"):
         priorities.append("Lugia VSTAR")
     if count_in_zone(state.discard, "Archeops") < 2:
         priorities.append("Archeops")
+    if not state.dark_asset_used and len(state.hand) < 6:
+        priorities.append("Crobat V")
     if not state.luminous_sign_used:
         priorities.append("Lumineon V")
     if state.turn == 1 and not state.squawk_used and "Squawkabilly ex" not in state.active + state.bench:
         priorities.append("Squawkabilly ex")
     priorities.extend(strategy.pokemon_search_priority)
     return priorities
+
+
+def should_search_archeops_for_ultra_ball(
+    state: GameState, strategy: GreedyStrategy, search_source: str
+) -> bool:
+    if count_in_zone(state.discard, "Archeops") >= 2:
+        return False
+    if strategy.search_archeops_for_ultra_ball and "Ultra Ball" in state.hand:
+        return True
+    if not strategy.search_archeops_for_discard_outlet:
+        return False
+    if "Carmine" in state.hand:
+        return True
+    if state.turn == 2 and "Professor's Research" in state.hand:
+        return True
+    return state.turn == 1 and not state.squawk_used and "Squawkabilly ex" in state.active + state.bench
 
 
 def is_basic_pokemon(name: str) -> bool:

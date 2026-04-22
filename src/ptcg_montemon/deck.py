@@ -52,15 +52,6 @@ def parse_deck_text(text: str) -> list[DeckEntry]:
     if total != 60:
         raise ValueError(f"Expected a 60-card deck, got {total} cards.")
 
-    for entry in entries:
-        card_def = get_card_def(entry.name)
-        if card_def.inferred:
-            continue
-        if card_def.set_code != entry.set_code or card_def.number != entry.number:
-            raise ValueError(
-                f"Deck line {entry.name} {entry.set_code} {entry.number} does not match card database."
-            )
-
     return entries
 
 

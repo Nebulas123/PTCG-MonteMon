@@ -20,11 +20,15 @@ class GameState:
     bench_turns: list[int] = field(default_factory=list)
     discard: list[str] = field(default_factory=list)
     stadium: list[str] = field(default_factory=list)
+    attached_energy: list[str] = field(default_factory=list)
+    energy_attached_turns: list[int] = field(default_factory=list)
     mulligans: int = 0
     turn: int = 0
     supporter_played: bool = False
     squawk_used: bool = False
     luminous_sign_used: bool = False
+    dark_asset_used: bool = False
+    summoning_star_used: bool = False
     mesagoza_used_turns: list[int] = field(default_factory=list)
     route: list[str] = field(default_factory=list)
 
@@ -62,11 +66,15 @@ class GameState:
             bench_turns=list(self.bench_turns),
             discard=list(self.discard),
             stadium=list(self.stadium),
+            attached_energy=list(self.attached_energy),
+            energy_attached_turns=list(self.energy_attached_turns),
             mulligans=self.mulligans,
             turn=self.turn,
             supporter_played=self.supporter_played,
             squawk_used=self.squawk_used,
             luminous_sign_used=self.luminous_sign_used,
+            dark_asset_used=self.dark_asset_used,
+            summoning_star_used=self.summoning_star_used,
             mesagoza_used_turns=list(self.mesagoza_used_turns),
             route=list(self.route),
         )
@@ -127,6 +135,7 @@ def setup_choices(opening: GameState) -> list[GameState]:
         state.bench = []
         state.bench_turns = []
         state.prizes = [state.deck.pop(0) for _ in range(6)]
+        state.route.append(f"setup: prize cards: {format_cards(state.prizes)}")
         choices.append(state)
 
     return choices
